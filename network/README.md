@@ -46,7 +46,7 @@ is a genuinely different code path on both the Palm and the Linux side.
   /dev/ircomm0` is mentioned as working "flawlessly" for HotSync over IR
   there too -- order matters: start HotSync on the Palm *before* the PC-side
   tool, same lesson as our USB `--usb` flow.
-- Requirement: this laptop (`enduro`) has no built-in IrDA hardware (modern
+- Requirement: this laptop has no built-in IrDA hardware (modern
   laptops don't). Need a **USB IrDA (SIR) adapter** -- must be a real
   computer IrDA adapter (Actisys, Belkin, IOGEAR-style), NOT a generic "USB
   IR blaster" for remote controls, which doesn't speak IrDA/IrCOMM at all.

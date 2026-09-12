@@ -1,5 +1,5 @@
 # pppd options for a direct-serial PPP link to a Palm OS device (m505).
-# Usage: sudo pppd /dev/ttyUSB0 115200 file /home/darksa/projects/fresh-palm/network/ppp-options
+# Usage: sudo pppd /dev/ttyUSB0 115200 file ./network/ppp-options
 #
 # Requires "net" mode (visor kernel module loaded, /dev/ttyUSB0 present).
 # On the Palm side: Prefs > Connection > new connection with "Connect to: PC Direct Serial",
