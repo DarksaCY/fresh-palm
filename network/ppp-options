@@ -1,0 +1,49 @@
+# pppd options for a direct-serial PPP link to a Palm OS device (m505).
+# Usage: sudo pppd /dev/ttyUSB0 115200 file /home/darksa/projects/fresh-palm/network/ppp-options
+#
+# Requires "net" mode (visor kernel module loaded, /dev/ttyUSB0 present).
+# On the Palm side: Prefs > Connection > new connection with "Connect to: PC Direct Serial",
+# then Prefs > Network > Service, Connection = that profile, tap Connect.
+
+# PC end : Palm end -- matches the statically-configured IP on the Palm's
+# Network > Service > Details panel (Query DNS / IP Address both unchecked).
+10.0.0.1:10.0.0.2
+
+# We are the server side of the link.
+local
+
+# No PPP authentication -- Palm OS's own login/user fields are not checked here.
+noauth
+
+# Don't fork to background; let the wrapper script manage the process.
+nodetach
+
+# Keep retrying / stay up across Palm-side reconnects during testing.
+persist
+
+# Retry / stay up if there's no reply yet, but DO send ConfReq ourselves --
+# with "silent" added, both sides waited for the other to speak first and
+# the Palm timed out (0x1212).
+passive
+
+# pppd defaults to asyncmap 0x0 (escape no control characters). The Fatal
+# Exception happened right as our ConfReq went out with that asyncmap --
+# old/flaky async serial stacks (which is what Palm OS's is, tunneled over
+# the visor USB link) are known to choke on raw 0x00-0x1F bytes. Force
+# escaping of all 32 control characters, the classic conservative setting.
+asyncmap 0xffffffff
+
+# Let the Palm's address behave as if it's on the LAN (used in the known-good
+# guruthree/PalmGET recipe alongside a broader NAT rule).
+proxyarp
+
+# Explicitly disable hardware (RTS/CTS) flow control -- the visor tty is a
+# USB tunnel with no real control lines, and if pppd or the line discipline
+# assumes crtscts is available, it may be misreading/mishandling data.
+nocrtscts
+
+# Hand out a DNS server -- also set manually on the Palm side (Query DNS off).
+ms-dns 8.8.8.8
+
+# Useful while debugging the handshake; drop to plain "debug" or remove once stable.
+debug

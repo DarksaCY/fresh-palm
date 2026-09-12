@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>fresh-palm</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --border: #2a2f3a;
+    --text: #e6e8eb;
+    --muted: #8b93a1;
+    --accent: #5ec2a5;
+    --bad: #e05d5d;
+    --good: #5ec2a5;
+    --warn: #e0b95d;
+    font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    padding: 24px;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .panel h2 {
+    font-size: 14px;
+    margin: 0 0 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .status-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 14px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+  .dot.good { background: var(--good); }
+  .dot.bad { background: var(--bad); }
+  button {
+    background: var(--accent);
+    color: #0f1115;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    margin: 4px 4px 4px 0;
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  button.secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  pre.console {
+    background: #0a0b0e;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px;
+    font-size: 12px;
+    max-height: 220px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    margin-top: 10px;
+  }
+  .roadmap li { margin-bottom: 6px; font-size: 13px; }
+  .roadmap .done { color: var(--good); }
+  .roadmap .wip { color: var(--warn); }
+  .roadmap .todo { color: var(--muted); }
+  input[type=file] { font-size: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<h1>fresh-palm</h1>
+<div class="sub">Мост Palm m505 ⇄ веб-интерфейс</div>
+
+<div class="grid">
+
+  <div class="panel">
+    <h2>Режим кабеля</h2>
+    <div class="sub" style="margin-bottom:8px">HotSync/файлы и PPP/интернет не могут работать одновременно — переключает драйвер <code>visor</code>.</div>
+    <div class="status-row"><span class="dot" id="dot-mode"></span><span id="txt-mode">режим: проверка…</span></div>
+    <button onclick="setMode('sync')">HotSync / файлы</button>
+    <button onclick="setMode('net')">Интернет (PPP)</button>
+    <pre class="console" id="console-mode">—</pre>
+  </div>
+
+  <div class="panel">
+    <h2>Статус подключения</h2>
+    <div class="status-row"><span class="dot" id="dot-usb"></span><span id="txt-usb">USB: проверка…</span></div>
+    <div class="status-row"><span class="dot" id="dot-cli"></span><span id="txt-cli">palm-sync CLI: проверка…</span></div>
+    <button onclick="refreshStatus()" class="secondary">Обновить</button>
+  </div>
+
+  <div class="panel">
+    <h2>HotSync</h2>
+    <div class="sub" style="margin-bottom:8px">Нажми HotSync на устройстве, затем жми кнопку здесь.</div>
+    <button onclick="callInfo()">Info</button>
+    <button onclick="callList()">List DB</button>
+    <pre class="console" id="console-sync">—</pre>
+  </div>
+
+  <div class="panel">
+    <h2>Файлы: с компьютера на Palm</h2>
+    <input type="file" id="push-file" />
+    <div><button onclick="pushFile()">Отправить (push)</button></div>
+    <pre class="console" id="console-push">—</pre>
+  </div>
+
+  <div class="panel">
+    <h2>Файлы: с Palm на компьютер</h2>
+    <input type="text" id="pull-names" placeholder="имена БД через запятую (пусто = все)" style="width:100%; margin-bottom:8px; background:#0a0b0e; color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px;" />
+    <button onclick="pullFiles()">Скачать (pull)</button>
+    <pre class="console" id="console-pull">—</pre>
+  </div>
+
+  <div class="panel">
+    <h2>Трансляция экрана (веб-камера)</h2>
+    <div class="sub" style="margin-bottom:8px">Направь камеру на экран Palm.</div>
+    <select id="cam-select" style="width:100%; margin-bottom:8px; background:#0a0b0e; color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px;"></select>
+    <div>
+      <button onclick="startCam()">Включить</button>
+      <button onclick="stopCam()" class="secondary">Выключить</button>
+    </div>
+    <video id="cam-video" autoplay playsinline muted
+      style="width:100%; margin-top:10px; border-radius:6px; border:1px solid var(--border); background:#000; max-height:240px; object-fit:contain;"></video>
+  </div>
+
+  <div class="panel" style="grid-column: 1 / -1;">
+    <h2>План проекта</h2>
+    <ol class="roadmap">
+      <li class="done">0. Разведка: USB/udev, Node, сборка palm-sync из исходников</li>
+      <li class="done">1. Веб-дашборд (этот экран)</li>
+      <li class="done">2. Обмен файлами через palm-sync (push/pull) — подтверждено, Plucker и EudoraWeb установлены</li>
+      <li class="wip">3. Трансляция экрана (веб-камера → страница)</li>
+      <li class="todo" style="text-decoration: line-through; opacity: 0.6;">4. Проброс интернета (PPP) — заблокировано железом, см. network/README.md</li>
+      <li class="wip">5. Проброс Claude — через Plucker-документы вместо живого браузера (обходит блокировку п.4)</li>
+    </ol>
+  </div>
+
+</div>
+
+<script>
+async function refreshStatus() {
+  const r = await fetch('/api/status').then(r => r.json());
+  setDot('dot-usb', r.usbPresent);
+  document.getElementById('txt-usb').textContent = 'USB: ' + (r.usbPresent ? 'устройство видно' : 'не найдено');
+  setDot('dot-cli', r.cliBuilt);
+  document.getElementById('txt-cli').textContent = 'palm-sync CLI: ' + (r.cliBuilt ? 'собран' : 'не собран');
+}
+function setDot(id, ok) {
+  const el = document.getElementById(id);
+  el.className = 'dot ' + (ok ? 'good' : 'bad');
+}
+function printTo(id, obj) {
+  document.getElementById(id).textContent =
+    typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2);
+}
+async function callInfo() {
+  printTo('console-sync', 'Жду HotSync (до 25с)...');
+  const r = await fetch('/api/palm/info', { method: 'POST' }).then(r => r.json());
+  printTo('console-sync', r);
+}
+async function callList() {
+  printTo('console-sync', 'Жду HotSync (до 25с)...');
+  const r = await fetch('/api/palm/list', { method: 'POST' }).then(r => r.json());
+  printTo('console-sync', r);
+}
+async function pushFile() {
+  const input = document.getElementById('push-file');
+  if (!input.files[0]) { printTo('console-push', 'Выбери файл.'); return; }
+  const fd = new FormData();
+  fd.append('file', input.files[0]);
+  printTo('console-push', 'Отправка (жду HotSync, до 60с)...');
+  const r = await fetch('/api/palm/push', { method: 'POST', body: fd }).then(r => r.json());
+  printTo('console-push', r);
+}
+async function pullFiles() {
+  const raw = document.getElementById('pull-names').value.trim();
+  const names = raw ? raw.split(',').map(s => s.trim()).filter(Boolean) : [];
+  printTo('console-pull', 'Скачивание (жду HotSync, до 60с)...');
+  const r = await fetch('/api/palm/pull', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ names }),
+  }).then(r => r.json());
+  printTo('console-pull', r);
+}
+async function refreshMode() {
+  const r = await fetch('/api/mode').then(r => r.json());
+  document.getElementById('dot-mode').className = 'dot good';
+  document.getElementById('txt-mode').textContent =
+    'режим: ' + (r.mode === 'net' ? 'интернет (PPP), visor загружен' : 'HotSync/файлы, visor выгружен');
+}
+async function setMode(mode) {
+  printTo('console-mode', 'Переключаю...');
+  const r = await fetch('/api/mode/' + mode, { method: 'POST' }).then(r => r.json());
+  printTo('console-mode', r);
+  refreshMode();
+}
+
+let camStream = null;
+
+async function listCams() {
+  const select = document.getElementById('cam-select');
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  const cams = devices.filter(d => d.kind === 'videoinput');
+  select.innerHTML = cams.map((d, i) =>
+    `<option value="${d.deviceId}">${d.label || 'Камера ' + (i + 1)}</option>`
+  ).join('');
+}
+
+async function startCam() {
+  try {
+    stopCam();
+    const select = document.getElementById('cam-select');
+    const deviceId = select.value || undefined;
+    camStream = await navigator.mediaDevices.getUserMedia({
+      video: deviceId ? { deviceId: { exact: deviceId } } : true,
+      audio: false,
+    });
+    document.getElementById('cam-video').srcObject = camStream;
+    await listCams(); // labels only populate after permission is granted
+  } catch (e) {
+    alert('Не удалось открыть камеру: ' + e.message);
+  }
+}
+
+function stopCam() {
+  if (camStream) {
+    camStream.getTracks().forEach(t => t.stop());
+    camStream = null;
+  }
+  document.getElementById('cam-video').srcObject = null;
+}
+
+listCams();
+refreshStatus();
+refreshMode();
+setInterval(refreshStatus, 5000);
+setInterval(refreshMode, 5000);
+</script>
+
+</body>
+</html>
