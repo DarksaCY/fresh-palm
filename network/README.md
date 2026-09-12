@@ -109,7 +109,7 @@ Palm and a stylus.
 (`/dev/ttyUSB0`), which only exists while `visor` **is loaded**. Palm OS itself
 only ever does one of these at a time (HotSync button vs. Network prefs
 "Connect"), so this maps cleanly onto a "sync" vs "net" toggle -- see the
-dashboard's "Режим кабеля" panel, or manually:
+dashboard's "Cable mode" panel, or manually:
 
 ```
 sudo modprobe -r visor   # sync mode (HotSync/files)

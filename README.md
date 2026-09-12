@@ -51,7 +51,7 @@ sudo modprobe -r visor
 sudo udevadm control --reload-rules && sudo udevadm trigger
 ```
 
-The dashboard's "Режим кабеля" panel re-loads `visor` on demand for the PPP
+The dashboard's "Cable mode" panel re-loads `visor` on demand for the PPP
 path (blocked, see above) — the blacklist only stops it auto-loading at
 boot/hotplug, it doesn't stop `modprobe visor` working when asked for.
 
