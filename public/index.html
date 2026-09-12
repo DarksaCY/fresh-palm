@@ -79,6 +79,12 @@
   .roadmap .wip { color: var(--warn); }
   .roadmap .todo { color: var(--muted); }
   input[type=file] { font-size: 12px; color: var(--muted); }
+  table.apps { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.apps th { text-align: left; color: var(--muted); font-weight: 600; padding: 4px 8px; border-bottom: 1px solid var(--border); }
+  table.apps td { padding: 4px 8px; border-bottom: 1px solid var(--border); }
+  table.apps tr.app-row td:first-child { font-weight: 600; }
+  .bar-track { background: #0a0b0e; border: 1px solid var(--border); border-radius: 6px; height: 18px; overflow: hidden; }
+  .bar-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
 </style>
 </head>
 <body>
@@ -112,8 +118,29 @@
     <pre class="console" id="console-sync">—</pre>
   </div>
 
-  <div class="panel">
-    <h2>Файлы: с компьютера на Palm</h2>
+  <div class="panel" style="grid-column: 1 / -1;">
+    <h2>Приложения и память</h2>
+
+    <div style="display:flex; gap:24px; flex-wrap:wrap; align-items:flex-end; margin-bottom:14px;">
+      <div style="flex:1; min-width:240px;">
+        <div class="sub" style="margin-bottom:6px">Память устройства (RAM)</div>
+        <div class="bar-track"><div class="bar-fill" id="mem-bar-fill"></div></div>
+        <div class="sub" id="mem-text" style="margin-top:6px">— (нажми "Обновить" ниже)</div>
+      </div>
+      <div>
+        <button onclick="refreshMemory()">Обновить память</button>
+        <button onclick="refreshApps()">Обновить список приложений</button>
+      </div>
+    </div>
+
+    <div style="max-height:260px; overflow:auto; border:1px solid var(--border); border-radius:6px; margin-bottom:14px;">
+      <table class="apps">
+        <thead><tr><th>Имя</th><th>Тип</th><th>Creator</th><th>Версия</th><th>Изменён</th></tr></thead>
+        <tbody id="apps-tbody"><tr><td colspan="5" class="sub" style="padding:8px;">Нажми "Обновить список приложений"</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="sub" style="margin-bottom:6px">Установить любое приложение / файл (.prc / .pdb) на Palm:</div>
     <input type="file" id="push-file" />
     <div><button onclick="pushFile()">Отправить (push)</button></div>
     <pre class="console" id="console-push">—</pre>
@@ -187,6 +214,52 @@ async function pushFile() {
   const r = await fetch('/api/palm/push', { method: 'POST', body: fd }).then(r => r.json());
   printTo('console-push', r);
 }
+function formatBytes(n) {
+  if (n == null) return '?';
+  if (n < 1024) return n + ' B';
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+  return (n / (1024 * 1024)).toFixed(2) + ' MB';
+}
+
+async function refreshMemory() {
+  document.getElementById('mem-text').textContent = 'Жду HotSync (до 25с)...';
+  const r = await fetch('/api/palm/memory', { method: 'POST' }).then(r => r.json());
+  if (!r.ok || !r.data || !r.data.cards || !r.data.cards.length) {
+    document.getElementById('mem-text').textContent = 'Ошибка: ' + (r.error || 'нет данных');
+    return;
+  }
+  const card = r.data.cards[0];
+  const used = card.ramSize - card.freeRam;
+  const pct = card.ramSize ? Math.round((used / card.ramSize) * 100) : 0;
+  document.getElementById('mem-bar-fill').style.width = pct + '%';
+  document.getElementById('mem-text').textContent =
+    `${formatBytes(used)} / ${formatBytes(card.ramSize)} занято (${pct}%) — ROM: ${formatBytes(card.romSize)} — БД в RAM: ${r.data.ramDBCount}`;
+}
+
+async function refreshApps() {
+  const tbody = document.getElementById('apps-tbody');
+  tbody.innerHTML = '<tr><td colspan="5" class="sub" style="padding:8px;">Жду HotSync (до 25с)...</td></tr>';
+  const r = await fetch('/api/palm/apps', { method: 'POST' }).then(r => r.json());
+  if (!r.ok || !r.data) {
+    tbody.innerHTML = `<tr><td colspan="5" class="sub" style="padding:8px;">Ошибка: ${r.error || 'нет данных'}</td></tr>`;
+    return;
+  }
+  if (!r.data.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="sub" style="padding:8px;">Пусто</td></tr>';
+    return;
+  }
+  tbody.innerHTML = r.data
+    .sort((a, b) => (b.isApp - a.isApp) || a.name.localeCompare(b.name))
+    .map(db => `<tr class="${db.isApp ? 'app-row' : ''}">
+      <td>${db.isApp ? '📱 ' : ''}${db.name}</td>
+      <td>${db.type}</td>
+      <td>${db.creator}</td>
+      <td>${db.version}</td>
+      <td>${db.modDate ? new Date(db.modDate).toLocaleDateString() : '—'}</td>
+    </tr>`)
+    .join('');
+}
+
 async function pullFiles() {
   const raw = document.getElementById('pull-names').value.trim();
   const names = raw ? raw.split(',').map(s => s.trim()).filter(Boolean) : [];

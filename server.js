@@ -6,6 +6,7 @@ const multer = require('multer');
 
 const PORT = process.env.PORT || 7373;
 const PALM_SYNC_CLI = path.join(__dirname, 'vendor', 'palm-sync', 'dist', 'bin', 'cli.js');
+const PALM_SYNC_FNS = path.join(__dirname, 'lib', 'palm-sync-fns.js');
 const UPLOAD_DIR = path.join(__dirname, 'data', 'uploads');
 const PULL_DIR = path.join(__dirname, 'data', 'pulled');
 const PALM_USB_ID = { vendor: '0830', product: '0002' }; // Palm m505
@@ -41,6 +42,20 @@ function runPalmSync(args, { timeoutMs = 20000 } = {}) {
       }
     );
   });
+}
+
+function extractJson(stdout) {
+  for (const line of stdout.split('\n')) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      try {
+        return JSON.parse(trimmed);
+      } catch {
+        // not the JSON line we're looking for, keep scanning
+      }
+    }
+  }
+  return null;
 }
 
 function isVisorLoaded(cb) {
@@ -99,9 +114,27 @@ app.post('/api/palm/list', async (req, res) => {
   res.json(result);
 });
 
+app.post('/api/palm/memory', async (req, res) => {
+  const result = await runPalmSync(
+    ['--usb', 'run', PALM_SYNC_FNS, '--fn', 'getMemoryInfo'],
+    { timeoutMs: 25000 }
+  );
+  const data = result.ok ? extractJson(result.stdout) : null;
+  res.json({ ...result, data });
+});
+
+app.post('/api/palm/apps', async (req, res) => {
+  const result = await runPalmSync(
+    ['--usb', 'run', PALM_SYNC_FNS, '--fn', 'getAppList'],
+    { timeoutMs: 25000 }
+  );
+  const data = result.ok ? extractJson(result.stdout) : null;
+  res.json({ ...result, data });
+});
+
 app.post('/api/palm/pull', async (req, res) => {
   const names = Array.isArray(req.body?.names) ? req.body.names : [];
-  const result = await runPalmSync(['--usb', 'pull', '--outputDir', PULL_DIR, ...names], {
+  const result = await runPalmSync(['--usb', 'pull', '--output-dir', PULL_DIR, ...names], {
     timeoutMs: 60000,
   });
   const files = fs.existsSync(PULL_DIR) ? fs.readdirSync(PULL_DIR) : [];
